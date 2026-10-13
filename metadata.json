@@ -1,0 +1,6 @@
+{
+  "name": "AutoTube Studio - AI YouTube Video Automation & Scene Sync Editor",
+  "description": "Professional YouTube automation video editor. Automatically syncs images scene-by-scene to voiceover timing, with trending dynamic AI captions, background music, Ken Burns motion, and HD video export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
