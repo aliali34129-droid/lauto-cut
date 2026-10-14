@@ -20,23 +20,94 @@ export interface ParseScriptResponse {
   }[];
 }
 
+export function parseScriptLocally(
+  scriptText: string,
+  totalDurationHint?: number,
+  visualStyle?: string
+): ParseScriptResponse {
+  const rawParagraphs = scriptText
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const chunks: string[] = [];
+  if (rawParagraphs.length > 1) {
+    chunks.push(...rawParagraphs);
+  } else {
+    // Split by sentences if single block of text
+    const sentences = scriptText.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [scriptText];
+    let temp = '';
+    for (const s of sentences) {
+      const trimmed = s.trim();
+      if (!trimmed) continue;
+      if (temp.length + trimmed.length > 150 && temp.length > 0) {
+        chunks.push(temp.trim());
+        temp = trimmed;
+      } else {
+        temp += (temp ? ' ' : '') + trimmed;
+      }
+    }
+    if (temp.trim()) chunks.push(temp.trim());
+  }
+
+  const finalChunks = chunks.length > 0 ? chunks : [scriptText || 'Scene description'];
+  const kenBurnsEffects = ['zoom-in', 'pan-right', 'zoom-out', 'pan-left', 'pan-up', 'tilt-down'];
+  const transitions = ['crossfade', 'slide-left', 'zoom-in', 'wipe-right', 'glitch'];
+
+  const scenes = finalChunks.map((narration, index) => {
+    const wordCount = narration.split(/\s+/).filter(Boolean).length;
+    const calcDur = Math.max(3.0, Math.round((wordCount / 2.3 + 1.2) * 10) / 10);
+    const duration = totalDurationHint
+      ? Math.max(2.5, Math.round((totalDurationHint / finalChunks.length) * 10) / 10)
+      : calcDur;
+
+    return {
+      sceneNumber: index + 1,
+      title: `Scene ${index + 1}`,
+      narration,
+      duration,
+      visualPrompt: `${visualStyle || 'Cinematic photorealistic'}, ${narration.slice(0, 70)}`,
+      searchKeywords: narration.split(/\s+/).filter((w) => w.length > 3).slice(0, 3),
+      kenBurns: kenBurnsEffects[index % kenBurnsEffects.length],
+      transition: transitions[index % transitions.length],
+      captions: [
+        {
+          text: narration,
+          relativeStart: 0,
+          duration,
+        },
+      ],
+    };
+  });
+
+  return {
+    videoTitle: 'AutoCut Project',
+    hookAnalysis: 'Automated scene segmentation generated.',
+    scenes,
+  };
+}
+
 export async function parseScriptWithAI(
   scriptText: string,
   totalDurationHint?: number,
   visualStyle?: string
 ): Promise<ParseScriptResponse> {
-  const response = await fetch('/api/gemini/parse-script', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scriptText, totalDurationHint, visualStyle }),
-  });
+  try {
+    const response = await fetch('/api/gemini/parse-script', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scriptText, totalDurationHint, visualStyle }),
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Server responded with status ${response.status}`);
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend API unavailable, using client-side parser fallback:', err);
   }
 
-  return response.json();
+  // Graceful client-side fallback (e.g. for GitHub Pages static hosting)
+  return parseScriptLocally(scriptText, totalDurationHint, visualStyle);
 }
 
 export async function generateTTSWithAI(
@@ -44,18 +115,27 @@ export async function generateTTSWithAI(
   voiceName: string = 'Zephyr',
   speechStyle?: string
 ): Promise<{ audioBase64: string; mimeType: string; voiceName: string }> {
-  const response = await fetch('/api/gemini/generate-tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, voiceName, speechStyle }),
-  });
+  try {
+    const response = await fetch('/api/gemini/generate-tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voiceName, speechStyle }),
+    });
 
-  if (!response.ok) {
+    if (response.ok) {
+      return await response.json();
+    }
+
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Failed to generate AI voiceover`);
+    throw new Error(errorData.error || `Voiceover error: ${response.status}`);
+  } catch (err: any) {
+    if (typeof window !== 'undefined' && (window.location.hostname.includes('github.io') || err?.message?.includes('Failed to fetch') || err?.message?.includes('404'))) {
+      throw new Error(
+        'AI Voice generation requires backend server with GEMINI_API_KEY. On static GitHub Pages, upload your audio voiceover file (MP3/WAV) using the Upload button or run locally.'
+      );
+    }
+    throw err;
   }
-
-  return response.json();
 }
 
 export interface SmartAiSyncResult {
