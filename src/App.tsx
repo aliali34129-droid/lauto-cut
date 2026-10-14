@@ -4,6 +4,7 @@ import { DEFAULT_PROJECT } from './data/defaultProject';
 import { APP_THEMES } from './data/themes';
 import { AudioEngine } from './services/audioEngine';
 import { syncTimingsWithAI, smartAiSyncWithVoiceAndScript } from './services/geminiService';
+import { autoMatchImagesToScenes } from './services/imageMatcher';
 
 // CapCut Layout Components
 import { CapCutHeader } from './components/capcut/CapCutHeader';
@@ -112,10 +113,11 @@ export default function App() {
     }
   }, [isPlaying, currentTime, audioEngine, project.audio.musicCustomUrl, project.scenes]);
 
-  // Time seek handler
+  // Time seek handler - synchronizes video playhead, active clip, AND audio engine
   const handleTimeUpdate = useCallback(
     (newTime: number) => {
       setCurrentTime(newTime);
+      audioEngine.seek(newTime, isPlaying, !!project.audio.musicCustomUrl);
       const active = project.scenes.find(
         (s) => newTime >= s.startTime && newTime < s.endTime
       );
@@ -123,10 +125,20 @@ export default function App() {
         setSelectedSceneId(active.id);
       }
     },
-    [project.scenes, selectedSceneId]
+    [project.scenes, selectedSceneId, isPlaying, project.audio.musicCustomUrl, audioEngine]
   );
 
-  // 1-Click Auto-Sync Scenes to Voiceover Duration with Gemini AI
+  // 1-Click Auto-Match All Images to Voiceover Narration
+  const handleAutoMatchImages = useCallback(() => {
+    const updatedScenes = autoMatchImagesToScenes(project.scenes);
+    setProject((prev) => ({
+      ...prev,
+      scenes: updatedScenes,
+    }));
+    showToast(`✓ Auto-matched relevant images for all ${updatedScenes.length} scenes based on narration!`);
+  }, [project.scenes]);
+
+  // 1-Click Auto-Sync Scenes & Images to Voiceover Duration
   const handleAutoSyncScenes = useCallback(
     async (targetDuration?: number, scriptText?: string) => {
       const durationToUse =
@@ -144,19 +156,20 @@ export default function App() {
           project.scenes,
           durationToUse
         );
+        const scenesWithMatchedImages = autoMatchImagesToScenes(smart.scenes);
         setProject((prev) => ({
           ...prev,
-          scenes: smart.scenes,
+          scenes: scenesWithMatchedImages,
           timelineCaptions:
             smart.timelineCaptions && smart.timelineCaptions.length > 0
               ? smart.timelineCaptions
               : prev.timelineCaptions,
         }));
         showToast(
-          `✓ All ${smart.scenes.length} scenes synchronized accurately to ${durationToUse.toFixed(1)}s voiceover!`
+          `✓ All ${smart.scenes.length} scenes & images synchronized to ${durationToUse.toFixed(1)}s voiceover!`
         );
       } catch (err) {
-        // Fallback proportional math
+        // Fallback proportional math + intelligent image matching
         const totalWords = project.scenes.reduce((acc, s) => {
           const w = (s.narration || '').trim().split(/\s+/).filter(Boolean).length;
           return acc + Math.max(w, 3);
@@ -184,8 +197,9 @@ export default function App() {
           };
         });
 
-        setProject((prev) => ({ ...prev, scenes: recalculated }));
-        showToast(`✓ Scenes auto-aligned to ${durationToUse.toFixed(1)}s voiceover!`);
+        const matched = autoMatchImagesToScenes(recalculated);
+        setProject((prev) => ({ ...prev, scenes: matched }));
+        showToast(`✓ All ${matched.length} scenes & images auto-synced to ${durationToUse.toFixed(1)}s voiceover!`);
       }
     },
     [project.scenes, project.audio.voiceoverDuration]

@@ -43,8 +43,10 @@ export const CapCutHeader: React.FC<CapCutHeaderProps> = ({
     onUpdateProject((prev) => ({ ...prev, theme: th }));
   };
 
+  const currentTheme = APP_THEMES[project.theme] || APP_THEMES.obsidian;
+
   return (
-    <header className="h-13 bg-[#111319] border-b border-gray-800/80 px-4 flex items-center justify-between select-none z-30 shrink-0">
+    <header className={`h-13 ${currentTheme.bgHeader} border-b ${currentTheme.border} px-4 flex items-center justify-between select-none z-30 shrink-0 transition-colors duration-200`}>
       {/* Zone 1: Wordmark & Project Meta */}
       <div className="flex items-center space-x-3.5">
         <div className="flex items-center space-x-2">
@@ -155,12 +157,17 @@ export const CapCutHeader: React.FC<CapCutHeaderProps> = ({
         </div>
 
         {/* Theme Selector */}
-        <div className="hidden xl:flex items-center space-x-1 bg-[#171922] px-2 py-1 rounded-lg border border-gray-800 text-xs">
-          <Palette className="w-3.5 h-3.5 text-gray-400 mr-0.5" />
+        <div className="flex items-center space-x-1.5 bg-[#171922] px-2 py-1 rounded-lg border border-gray-700/70 text-xs shadow-xs">
+          <Palette className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+          <div
+            className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/20"
+            style={{ backgroundColor: currentTheme.previewColor }}
+          />
           <select
             value={project.theme}
             onChange={(e) => handleSelectTheme(e.target.value as AppTheme)}
-            className="bg-transparent text-gray-300 text-xs font-semibold focus:outline-none cursor-pointer"
+            className="bg-transparent text-gray-200 text-xs font-semibold focus:outline-none cursor-pointer pr-1"
+            title="Switch Studio Theme"
           >
             {Object.values(APP_THEMES).map((th) => (
               <option key={th.id} value={th.id} className="bg-[#171922] text-white">

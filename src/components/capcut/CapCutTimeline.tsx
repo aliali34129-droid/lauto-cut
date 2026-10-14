@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { VideoProject, Scene, TimelineCaption } from '../../types/editor';
 import { AudioEngine } from '../../services/audioEngine';
+import { APP_THEMES } from '../../data/themes';
+import { autoMatchImagesToScenes } from '../../services/imageMatcher';
 import {
   Scissors,
   Trash2,
@@ -664,10 +666,12 @@ export const CapCutTimeline: React.FC<CapCutTimelineProps> = ({
     rulerTicks.push(s);
   }
 
+  const currentTheme = APP_THEMES[project.theme] || APP_THEMES.obsidian;
+
   return (
-    <div className="h-68 bg-[#0D0F16] border-t border-gray-800 flex flex-col select-none shrink-0 relative">
+    <div className={`h-68 ${currentTheme.bgCard} border-t ${currentTheme.border} flex flex-col select-none shrink-0 relative transition-colors duration-200`}>
       {/* 1. CapCut Pro Toolbar Header */}
-      <div className="h-9 px-4 bg-[#111319] border-b border-gray-800 flex items-center justify-between text-xs z-10 shrink-0">
+      <div className={`h-9 px-4 ${currentTheme.bgHeader} border-b ${currentTheme.border} flex items-center justify-between text-xs z-10 shrink-0`}>
         {/* Left: Quick Actions */}
         <div className="flex items-center space-x-2">
           {/* Split at Playhead (Scissors) */}
@@ -720,14 +724,29 @@ export const CapCutTimeline: React.FC<CapCutTimelineProps> = ({
 
           <div className="h-4 w-px bg-gray-800 mx-1" />
 
-          {/* Auto-Sync Beat Button */}
+          {/* Auto-Sync Timing & Audio Button */}
           <button
             onClick={onOpenAiDirector || onAutoSyncScenes}
-            className="flex items-center space-x-1.5 px-3 py-1 rounded bg-gradient-to-r from-cyan-600/25 to-blue-600/25 hover:from-cyan-600/35 hover:to-blue-600/35 text-cyan-300 border border-cyan-500/35 transition text-[11px] font-bold shadow-sm"
+            className="flex items-center space-x-1.5 px-3 py-1 rounded bg-gradient-to-r from-cyan-600/30 to-blue-600/30 hover:from-cyan-600/40 hover:to-blue-600/40 text-cyan-300 border border-cyan-500/40 transition text-[11px] font-bold shadow-sm"
             title="Auto-align visual image durations to voiceover and script with Gemini AI"
           >
             <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
-            <span>AI Auto-Sync</span>
+            <span>Auto-Sync Voice</span>
+          </button>
+
+          {/* 1-Click Auto-Match Images to Voiceover Narration */}
+          <button
+            onClick={() => {
+              onUpdateProject((prev) => ({
+                ...prev,
+                scenes: autoMatchImagesToScenes(prev.scenes),
+              }));
+            }}
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded bg-[#1C1F2B] hover:bg-emerald-950/40 text-emerald-400 hover:text-emerald-300 border border-emerald-500/40 transition text-[11px] font-bold shadow-sm"
+            title="Auto-match relevant images for every scene based on voiceover narration"
+          >
+            <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Sync Images to Voice</span>
           </button>
 
           {/* Add Clip */}
@@ -896,6 +915,16 @@ export const CapCutTimeline: React.FC<CapCutTimelineProps> = ({
           ref={trackAreaRef}
           style={{ width: `${totalTimelineWidth}px` }}
           className="h-full relative flex flex-col"
+          onMouseDown={(e) => {
+            const target = e.target as HTMLElement;
+            if (
+              target === trackAreaRef.current ||
+              target.dataset.trackBg === 'true' ||
+              target.classList.contains('track-row')
+            ) {
+              handleMouseDownScrubber(e);
+            }
+          }}
         >
           {/* Time Ruler */}
           <div
@@ -1186,10 +1215,20 @@ export const CapCutTimeline: React.FC<CapCutTimelineProps> = ({
               transform: `translateX(${currentTime * pixelsPerSecond}px)`,
               willChange: 'transform',
             }}
-            className="absolute top-0 bottom-0 w-px bg-red-500 z-30 pointer-events-none shadow-[0_0_10px_rgba(239,68,68,0.95)]"
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none shadow-[0_0_12px_rgba(239,68,68,1)]"
           >
-            {/* Playhead Head Handle */}
-            <div className="w-3.5 h-3.5 -ml-[6px] -mt-[1px] bg-red-600 rounded-sm transform rotate-45 border border-white shadow-md pointer-events-auto cursor-ew-resize" />
+            {/* Grab hit-target along entire needle height */}
+            <div
+              onMouseDown={handleMouseDownScrubber}
+              className="absolute top-0 bottom-0 -left-2 w-4 cursor-ew-resize pointer-events-auto"
+              title="Click & drag playhead line"
+            />
+            {/* Playhead Top Needle Handle */}
+            <div
+              onMouseDown={handleMouseDownScrubber}
+              className="w-4 h-4 -ml-[7px] -mt-[2px] bg-red-600 rounded-xs transform rotate-45 border-2 border-white shadow-xl pointer-events-auto cursor-ew-resize hover:scale-125 active:scale-95 transition-transform"
+              title="Drag playhead needle"
+            />
           </div>
         </div>
       </div>
