@@ -462,8 +462,9 @@ async function startServer() {
     });
   }
 
-  app.listen(port, () => {
-    console.log(`AutoTube Studio server running on port ${port}`);
+  const host = process.env.HOST || '0.0.0.0';
+  app.listen(Number(port), host, () => {
+    console.log(`AutoTube Studio server running on http://${host}:${port}`);
   });
 }
 

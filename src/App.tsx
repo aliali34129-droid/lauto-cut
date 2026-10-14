@@ -206,7 +206,7 @@ export default function App() {
   const selectedScene = project.scenes.find((s) => s.id === selectedSceneId) || project.scenes[0] || null;
 
   return (
-    <div className={`flex flex-col h-screen w-screen ${themeConfig.bgMain} text-white font-sans antialiased overflow-hidden select-none`}>
+    <div className={`flex flex-col h-full w-full min-h-full flex-1 ${themeConfig.bgMain} text-white font-sans antialiased overflow-hidden select-none`}>
       {studioMode === 'capcut' ? (
         /* ================= CAPCUT PRO STUDIO LAYOUT (DEFAULT) ================= */
         <div className="flex flex-col h-full w-full overflow-hidden">

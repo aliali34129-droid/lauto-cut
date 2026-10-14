@@ -214,32 +214,39 @@ export class AudioEngine {
 
   private initContext() {
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      this.ctx = new AudioCtx();
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
 
-      this.masterGainNode = this.ctx.createGain();
-      this.voiceGainNode = this.ctx.createGain();
-      this.musicGainNode = this.ctx.createGain();
+        this.masterGainNode = this.ctx.createGain();
+        this.voiceGainNode = this.ctx.createGain();
+        this.musicGainNode = this.ctx.createGain();
 
-      this.voiceGainNode.gain.value = this.voiceoverVolume;
-      this.musicGainNode.gain.value = this.musicVolume;
-      this.masterGainNode.gain.value = 1.0;
+        this.voiceGainNode.gain.value = this.voiceoverVolume;
+        this.musicGainNode.gain.value = this.musicVolume;
+        this.masterGainNode.gain.value = 1.0;
 
-      // Stream destination for video export
-      this.streamDestination = this.ctx.createMediaStreamDestination();
+        // Stream destination for video export
+        this.streamDestination = this.ctx.createMediaStreamDestination();
 
-      // Route both to master & stream
-      this.voiceGainNode.connect(this.masterGainNode);
-      this.musicGainNode.connect(this.masterGainNode);
+        // Route both to master & stream
+        this.voiceGainNode.connect(this.masterGainNode);
+        this.musicGainNode.connect(this.masterGainNode);
 
-      this.voiceGainNode.connect(this.streamDestination);
-      this.musicGainNode.connect(this.streamDestination);
+        this.voiceGainNode.connect(this.streamDestination);
+        this.musicGainNode.connect(this.streamDestination);
 
-      this.masterGainNode.connect(this.ctx.destination);
+        this.masterGainNode.connect(this.ctx.destination);
+      } catch (err) {
+        console.warn('AudioContext initialization deferred or restricted:', err);
+      }
     }
 
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+    if (this.ctx && this.ctx.state === 'suspended') {
+      try {
+        this.ctx.resume().catch(() => {});
+      } catch {}
     }
   }
 
