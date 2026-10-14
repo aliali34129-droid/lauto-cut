@@ -38,6 +38,13 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // If served directly as static HTML on GitHub Pages without bundler, route to compiled /docs/
+      if (window.location.hostname.includes('github.io') && !window.location.pathname.includes('/docs')) {
+        var p = window.location.pathname.replace(/\/+$/, '');
+        window.location.replace(p + '/docs/' + window.location.search + window.location.hash);
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
